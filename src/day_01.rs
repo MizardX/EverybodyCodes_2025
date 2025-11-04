@@ -67,12 +67,17 @@ impl FromStr for Input {
 pub struct Day01;
 
 impl Day for Day01 {
+    type Input = Input;
+    type ParseError = ParseError;
     type Output1 = String;
     type Output2 = String;
     type Output3 = String;
 
-    fn part_1(input: &str) -> Self::Output1 {
-        let input: Input = input.parse().unwrap();
+    fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
+        input.parse()
+    }
+
+    fn part_1(input: &Self::Input) -> Self::Output1 {
         let mut pos = 0_usize;
         for &instr in &input.instructions {
             match instr {
@@ -83,8 +88,7 @@ impl Day for Day01 {
         input.names[pos].clone()
     }
 
-    fn part_2(input: &str) -> Self::Output2 {
-        let input: Input = input.parse().unwrap();
+    fn part_2(input: &Self::Input) -> Self::Output2 {
         let mut pos = 0_usize;
         let len = input.names.len();
         for &instr in &input.instructions {
@@ -96,16 +100,16 @@ impl Day for Day01 {
         input.names[pos].clone()
     }
 
-    fn part_3(input: &str) -> Self::Output3 {
-        let mut input: Input = input.parse().unwrap();
+    fn part_3(input: &Self::Input) -> Self::Output3 {
+        let mut names = input.names.clone();
         let len = input.names.len();
         for &instr in &input.instructions {
             match instr {
-                Instruction::Left(n) => input.names.swap(0, (len - n % len) % len),
-                Instruction::Right(n) => input.names.swap(0, n % len),
+                Instruction::Left(n) => names.swap(0, (len - n % len) % len),
+                Instruction::Right(n) => names.swap(0, n % len),
             }
         }
-        input.names[0].clone()
+        names[0].clone()
     }
 }
 
@@ -142,19 +146,22 @@ mod tests {
 
     #[test]
     fn test_part_1() {
-        let result = Day01::part_1(EXAMPLE1);
+        let input = EXAMPLE1.parse().unwrap();
+        let result = Day01::part_1(&input);
         assert_eq!(result, "Fyrryn");
     }
 
     #[test]
     fn test_part_2() {
-        let result = Day01::part_2(EXAMPLE1);
+        let input = EXAMPLE1.parse().unwrap();
+        let result = Day01::part_2(&input);
         assert_eq!(result, "Elarzris");
     }
 
     #[test]
     fn test_part_3() {
-        let result = Day01::part_3(EXAMPLE2);
+        let input = EXAMPLE2.parse().unwrap();
+        let result = Day01::part_3(&input);
         assert_eq!(result, "Drakzyph");
     }
 }

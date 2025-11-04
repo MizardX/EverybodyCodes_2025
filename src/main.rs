@@ -1,57 +1,53 @@
+use std::error::Error;
 use std::fmt::Display;
 
 use clap::Parser;
 
-use crate::day_01::Day01;
+mod runner;
+use crate::runner::{Cli, Command, Runner};
 
+#[allow(unused)]
 trait Day {
+    type Input;
+    type ParseError: Error;
     type Output1: Display;
     type Output2: Display;
     type Output3: Display;
 
-    fn part_1(input: &str) -> Self::Output1;
-    fn part_2(input: &str) -> Self::Output2 { todo!() }
-    fn part_3(input: &str) -> Self::Output3 { todo!() }
+    fn parse(input: &str) -> Result<Self::Input, Self::ParseError>;
+
+    fn part_1(input: &Self::Input) -> Self::Output1 {
+        todo!()
+    }
+    fn part_2(input: &Self::Input) -> Self::Output2 {
+        todo!()
+    }
+    fn part_3(input: &Self::Input) -> Self::Output3 {
+        todo!()
+    }
 }
 
+// For each day:
 mod day_01;
 
-/// Search for a pattern in a file and display the lines that contain it.
-#[derive(Parser)]
-struct Cli {
-    #[arg(short, long)]
-    day: Option<usize>,
-    #[arg(short, long)]
-    part: Option<usize>,
-}
-
-fn run<D: Day>(num: usize, part: Option<usize>) {
-    println!();
-    println!("Day {num}");
-    if part.is_none_or(|p| p == 1) {
-        let input = std::fs::read_to_string(format!("./input/day_{num:02}_part_1.txt")).unwrap();
-        println!("  Part 1: {}", D::part_1(&input));
-    }
-    if part.is_none_or(|p| p == 2) {
-        let input = std::fs::read_to_string(format!("./input/day_{num:02}_part_2.txt")).unwrap();
-        println!("  Part 2: {}", D::part_2(&input));
-    }
-    if part.is_none_or(|p| p == 3) {
-        let input = std::fs::read_to_string(format!("./input/day_{num:02}_part_3.txt")).unwrap();
-        println!("  Part 3: {}", D::part_3(&input));
-    }
-}
-
-const DAYS: &[fn(Option<usize>)] = &[|part| run::<Day01>(1, part)];
-
-fn main() {
+#[tokio::main]
+async fn main() {
+    let mut runner = Runner::default();
     let cli = Cli::parse();
-
-    for (num, day) in (1..).zip(DAYS) {
-        if cli.day.is_some_and(|day| day != num) {
-            continue;
+    if let Some(cmd) = cli.command {
+        match cmd {
+            Command::Cookie { cookie } => {
+                runner.save_cookie(&cookie);
+            }
+            Command::Download { day } => runner.download(day).await,
         }
-        day(cli.part);
+    } else {
+        // For each day:
+
+        if cli.day.is_none_or(|d| d == 1) {
+            runner.run::<day_01::Day01>(1, cli.part).await;
+        }
+
+        println!();
     }
-    println!();
 }
