@@ -29,6 +29,7 @@ trait Day {
 
 // For each day:
 mod day_01;
+mod day_02;
 
 #[tokio::main]
 async fn main() {
@@ -46,6 +47,10 @@ async fn main() {
 
         if cli.day.is_none_or(|d| d == 1) {
             runner.run::<day_01::Day01>(1, cli.part).await;
+        }
+
+        if cli.day.is_none_or(|d| d == 2) {
+            runner.run::<day_02::Day02>(2, cli.part).await;
         }
 
         println!();
