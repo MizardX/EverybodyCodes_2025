@@ -3,6 +3,7 @@ use std::num::ParseIntError;
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign};
 use std::str::FromStr;
 
+use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use thiserror::Error;
 
 use crate::Day;
@@ -156,29 +157,28 @@ impl Day for Day02 {
     }
 
     fn part_3(&input: &Self::Input) -> Self::Output3 {
-        let mut count = 0;
-        for x in input.x..=input.x + 1000 {
-            'y: for y in input.y..=input.y + 1000 {
-                let z = Complex::new(x, y);
-                let mut m = Complex::new(0, 0);
+        (0..1001 * 1001)
+            .into_par_iter()
+            .filter(|&xy| {
+                let m = Complex::new(xy % 1001 + input.x, xy / 1001 + input.y);
+                let mut z = Complex::new(0, 0);
                 for _ in 0..100 {
-                    m *= m;
-                    m /= 100000;
-                    m += z;
-                    if m.exceeds(1000000) {
-                        continue 'y;
+                    z *= z;
+                    z /= 100_000;
+                    z += m;
+                    if z.exceeds(1_000_000) {
+                        return false;
                     }
                 }
-                count += 1;
-            }
-        }
-        count
+                true
+            })
+            .count()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::day_02::{Complex, Day02};
+    use image::{ImageBuffer, Rgb};
 
     use super::*;
 
@@ -210,5 +210,44 @@ mod tests {
         let input = Day02::parse(EXAMPLE2).unwrap();
         let result = Day02::part_3(&input);
         assert_eq!(result, 406_954);
+    }
+
+    #[test]
+    #[ignore = "Generates image"]
+    fn test_render() {
+        let input = Day02::parse(EXAMPLE2).unwrap();
+        let pixels = (0..1001 * 1001)
+            .into_par_iter()
+            .filter_map(|xy| {
+                let m = Complex::new(xy % 1001 + input.x, xy / 1001 + input.y);
+                let mut z = Complex::new(0, 0);
+                for t in 0_u8..=255 {
+                    z *= z;
+                    z /= 100_000;
+                    z += m;
+                    if z.exceeds(1_000_000) {
+                        return Some((xy, t, z.x.unsigned_abs().max(z.y.unsigned_abs())));
+                    }
+                }
+                None
+            })
+            .collect::<Vec<_>>();
+        let mut image = ImageBuffer::<Rgb<u8>, _>::new(1001, 1001);
+        for &(xy, t, _dist) in &pixels {
+            let clr = u8::try_from(unsafe {
+                ((f64::from(t) / 255.0).sqrt() * 255.0).to_int_unchecked::<i64>()
+            })
+            .unwrap_or(255);
+            image.put_pixel(
+                u32::try_from(xy % 1001).unwrap(),
+                u32::try_from(xy / 1001).unwrap(),
+                Rgb([clr, clr, clr]),
+            );
+        }
+        let filename = "input/day_02.png";
+        image
+            .save_with_format(filename, image::ImageFormat::Png)
+            .unwrap();
+        println!("Saved image to {filename}");
     }
 }

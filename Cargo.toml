@@ -10,6 +10,8 @@ cipher = "0.4.4"
 clap = { version = "4.5.51", features = ["derive"] }
 clap_derive = "4.5.49"
 hex = { version = "0.4.3", features = ["serde"] }
+image = "0.25.8"
+rayon = "1.11.0"
 reqwest = { version = "0.12.24", features = ["cookies", "json"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
