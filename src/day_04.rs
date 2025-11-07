@@ -1,75 +1,64 @@
 use std::num::ParseIntError;
 use std::str::FromStr;
 
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum ParseError {
-    #[error("Syntax error")]
-    SyntaxError,
-    #[error(transparent)]
-    InvalidNumber(#[from] ParseIntError),
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gear {
+    Single(u64),
+    Double(u64, u64),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Input {
-    first: u64,
-    pairs: Vec<(u64, u64)>,
-    last: u64,
-}
-
-impl FromStr for Input {
-    type Err = ParseError;
+impl FromStr for Gear {
+    type Err = ParseIntError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut lines = s.lines();
-        let first = lines
-            .next()
-            .ok_or(ParseError::SyntaxError)?
-            .parse::<u64>()?;
-        let mut pairs = Vec::new();
-        let mut last = 0;
-        if let Some(mut prev) = lines.next() {
-            for line in lines {
-                if let Some((left, right)) = prev.split_once('|') {
-                    pairs.push((left.parse()?, right.parse()?));
-                }
-                prev = line;
-            }
-            last = prev.parse()?;
+        if let Some((left, right)) = s.split_once('|') {
+            Ok(Self::Double(left.parse()?, right.parse()?))
+        } else {
+            Ok(Self::Single(s.parse()?))
         }
-        Ok(Self { first, pairs, last })
     }
 }
 
 pub struct Day04;
 
 impl crate::Day for Day04 {
-    type Input = Input;
+    type Input = Vec<Gear>;
 
-    type ParseError = ParseError;
+    type ParseError = ParseIntError;
 
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
-        input.parse()
+        input.lines().map(str::parse).collect()
     }
 
     type Output1 = u64;
     fn part_1(gears: &Self::Input) -> Self::Output1 {
-        gears.first * 2025 / gears.last
+        let &[Gear::Single(first), .., Gear::Single(last)] = gears.as_slice() else {
+            panic!("Input should start and end with a single gear")
+        };
+        first * 2025 / last
     }
 
     type Output2 = u64;
     fn part_2(gears: &Self::Input) -> Self::Output2 {
-        (10_000_000_000_000 * gears.last).div_ceil(gears.first)
+        let &[Gear::Single(first), .., Gear::Single(last)] = gears.as_slice() else {
+            panic!("Input should start and end with a single gear")
+        };
+        (10_000_000_000_000 * last).div_ceil(first)
     }
 
     type Output3 = u64;
-    fn part_3(input: &Self::Input) -> Self::Output3 {
-        let mut teeth = 100 * input.first;
-        for &(left, right) in &input.pairs {
+    fn part_3(gears: &Self::Input) -> Self::Output3 {
+        let &[Gear::Single(first), ref shifts @ .., Gear::Single(last)] = gears.as_slice() else {
+            panic!("Input should start and end with a single gear")
+        };
+        let mut teeth = 100 * first;
+        for &gear in shifts {
+            let Gear::Double(left, right) = gear else {
+                panic!("Input should only contain doubles in between first and last")
+            };
             teeth = teeth * right / left;
         }
-        teeth / input.last
+        teeth / last
     }
 }
 
