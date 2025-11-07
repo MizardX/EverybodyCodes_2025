@@ -65,12 +65,11 @@ impl crate::Day for Day04 {
 
     type Output3 = u64;
     fn part_3(input: &Self::Input) -> Self::Output3 {
-        let mut ratio = (100 * input.first) as f64 / input.last as f64;
+        let mut teeth = 100 * input.first;
         for &(left, right) in &input.pairs {
-            ratio /= left as f64;
-            ratio *= right as f64;
+            teeth = teeth * right / left;
         }
-        ratio.floor() as u64
+        teeth / input.last
     }
 }
 
