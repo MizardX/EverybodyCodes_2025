@@ -1,3 +1,5 @@
+#![allow(refining_impl_trait)]
+
 use std::error::Error;
 use std::fmt::Display;
 
@@ -10,19 +12,17 @@ use crate::runner::{Cli, Command, Runner};
 trait Day {
     type Input;
     type ParseError: Error;
-    type Output1: Display;
-    type Output2: Display;
-    type Output3: Display;
-
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError>;
 
-    fn part_1(input: &Self::Input) -> Self::Output1 {
+    fn part_1(input: &Self::Input) -> impl Display {
         todo!()
     }
-    fn part_2(input: &Self::Input) -> Self::Output2 {
+
+    fn part_2(input: &Self::Input) -> impl Display {
         todo!()
     }
-    fn part_3(input: &Self::Input) -> Self::Output3 {
+
+    fn part_3(input: &Self::Input) -> impl Display {
         todo!()
     }
 }

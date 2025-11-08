@@ -133,13 +133,11 @@ impl crate::Day for Day05 {
         input.lines().map(str::parse).collect()
     }
 
-    type Output1 = u64;
-    fn part_1(input: &Self::Input) -> Self::Output1 {
+    fn part_1(input: &Self::Input) -> u64 {
         Fishbone::from(&input[0]).spine()
     }
 
-    type Output2 = u64;
-    fn part_2(input: &Self::Input) -> Self::Output2 {
+    fn part_2(input: &Self::Input) -> u64 {
         let mut min = u64::MAX;
         let mut max = u64::MIN;
         for sword in input {
@@ -150,8 +148,7 @@ impl crate::Day for Day05 {
         max - min
     }
 
-    type Output3 = u64;
-    fn part_3(input: &Self::Input) -> Self::Output3 {
+    fn part_3(input: &Self::Input) -> u64 {
         let mut swords = input
             .iter()
             .map(|sword| (Fishbone::from(sword), sword.id))

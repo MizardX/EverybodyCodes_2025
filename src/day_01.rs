@@ -69,15 +69,12 @@ pub struct Day01;
 impl Day for Day01 {
     type Input = Input;
     type ParseError = ParseError;
-    type Output1 = String;
-    type Output2 = String;
-    type Output3 = String;
 
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
         input.parse()
     }
 
-    fn part_1(input: &Self::Input) -> Self::Output1 {
+    fn part_1(input: &Self::Input) -> String {
         let mut pos = 0_usize;
         for &instr in &input.instructions {
             match instr {
@@ -88,7 +85,7 @@ impl Day for Day01 {
         input.names[pos].clone()
     }
 
-    fn part_2(input: &Self::Input) -> Self::Output2 {
+    fn part_2(input: &Self::Input) -> String {
         let mut pos = 0_usize;
         let len = input.names.len();
         for &instr in &input.instructions {
@@ -100,7 +97,7 @@ impl Day for Day01 {
         input.names[pos].clone()
     }
 
-    fn part_3(input: &Self::Input) -> Self::Output3 {
+    fn part_3(input: &Self::Input) -> String {
         let mut names = input.names.clone();
         let len = input.names.len();
         for &instr in &input.instructions {

@@ -30,24 +30,21 @@ impl crate::Day for Day04 {
         input.lines().map(str::parse).collect()
     }
 
-    type Output1 = u64;
-    fn part_1(gears: &Self::Input) -> Self::Output1 {
+    fn part_1(gears: &Self::Input) -> u64 {
         let &[Gear::Single(first), .., Gear::Single(last)] = gears.as_slice() else {
             panic!("Input should start and end with a single gear")
         };
         first * 2025 / last
     }
 
-    type Output2 = u64;
-    fn part_2(gears: &Self::Input) -> Self::Output2 {
+    fn part_2(gears: &Self::Input) -> u64 {
         let &[Gear::Single(first), .., Gear::Single(last)] = gears.as_slice() else {
             panic!("Input should start and end with a single gear")
         };
         (10_000_000_000_000 * last).div_ceil(first)
     }
 
-    type Output3 = u64;
-    fn part_3(gears: &Self::Input) -> Self::Output3 {
+    fn part_3(gears: &Self::Input) -> u64 {
         let &[Gear::Single(first), ref shifts @ .., Gear::Single(last)] = gears.as_slice() else {
             panic!("Input should start and end with a single gear")
         };

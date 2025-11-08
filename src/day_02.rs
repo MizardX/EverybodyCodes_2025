@@ -110,15 +110,7 @@ pub struct Day02;
 
 impl Day for Day02 {
     type Input = Complex;
-
     type ParseError = ParseError;
-
-    type Output1 = Complex;
-
-    type Output2 = usize;
-
-    type Output3 = usize;
-
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
         input
             .strip_prefix("A=")
@@ -126,7 +118,7 @@ impl Day for Day02 {
             .parse()
     }
 
-    fn part_1(&input: &Self::Input) -> Self::Output1 {
+    fn part_1(&input: &Self::Input) -> Complex {
         let mut result = Complex::new(0, 0);
         for _ in 0..3 {
             result *= result;
@@ -136,7 +128,7 @@ impl Day for Day02 {
         result
     }
 
-    fn part_2(&input: &Self::Input) -> Self::Output2 {
+    fn part_2(&input: &Self::Input) -> usize {
         let mut count = 0;
         for x in (input.x..=input.x + 1000).step_by(10) {
             'y: for y in (input.y..=input.y + 1000).step_by(10) {
@@ -156,7 +148,7 @@ impl Day for Day02 {
         count
     }
 
-    fn part_3(&input: &Self::Input) -> Self::Output3 {
+    fn part_3(&input: &Self::Input) -> usize {
         (0..1001 * 1001)
             .into_par_iter()
             .filter(|&xy| {

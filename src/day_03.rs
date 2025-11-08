@@ -7,7 +7,6 @@ pub struct Day03;
 impl Day for Day03 {
     type Input = Vec<u16>;
     type ParseError = ParseIntError;
-
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
         let mut result = input
             .split(',')
@@ -17,9 +16,7 @@ impl Day for Day03 {
         Ok(result)
     }
 
-    type Output1 = usize;
-
-    fn part_1(input: &Self::Input) -> Self::Output1 {
+    fn part_1(input: &Self::Input) -> usize {
         let mut largest_set = 0;
         for size_group in input.chunk_by(PartialEq::eq) {
             // SAFETY: chunk_by yields groups of size at least one.
@@ -29,9 +26,7 @@ impl Day for Day03 {
         largest_set
     }
 
-    type Output2 = usize;
-
-    fn part_2(input: &Self::Input) -> Self::Output2 {
+    fn part_2(input: &Self::Input) -> usize {
         let mut smallest_set = 0;
         for size_group in input.chunk_by(PartialEq::eq).take(20) {
             // SAFETY: chunk_by yields groups of size at least one.
@@ -41,9 +36,7 @@ impl Day for Day03 {
         smallest_set
     }
 
-    type Output3 = usize;
-
-    fn part_3(input: &Self::Input) -> Self::Output3 {
+    fn part_3(input: &Self::Input) -> usize{
         input
             .chunk_by(PartialEq::eq)
             .map(<[_]>::len)
