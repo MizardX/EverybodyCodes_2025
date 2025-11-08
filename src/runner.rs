@@ -12,7 +12,6 @@ use serde::Deserialize;
 
 use crate::Day;
 
-
 #[derive(Parser)]
 pub struct Cli {
     #[arg(short, long, value_parser = clap::value_parser!(u16).range(1..=25))]
@@ -69,6 +68,7 @@ impl Runner {
     pub fn save_cookie(&mut self, new_cookie: &str) {
         let cookie_fn = "./input/cookie.txt";
         std::fs::write(cookie_fn, new_cookie).expect("Write cookie file");
+        self.cookie = Some(Arc::from(new_cookie));
     }
     fn get_cookie(&mut self) -> Arc<str> {
         if let Some(cookie) = &self.cookie {
@@ -183,8 +183,14 @@ impl Runner {
                     _ => println!("Quest {day} - Part 3: {}", D::part_3(&input)),
                 }
                 let time_complete = Instant::now();
-                println!("          parsing: {:?}", time_parsed.duration_since(time_start));
-                println!("          runner: {:?}", time_complete.duration_since(time_parsed));
+                println!(
+                    "          parsing: {:?}",
+                    time_parsed.duration_since(time_start)
+                );
+                println!(
+                    "          runner: {:?}",
+                    time_complete.duration_since(time_parsed)
+                );
                 println!();
             }
         }

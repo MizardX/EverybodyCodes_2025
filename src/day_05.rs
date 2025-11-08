@@ -39,7 +39,7 @@ impl From<&Sword> for Fishbone {
 }
 
 impl Fishbone {
-    fn len(&self) -> usize {
+    const fn len(&self) -> usize {
         self.segments.len()
     }
 
@@ -51,13 +51,10 @@ impl Fishbone {
 
     fn segment(&self, index: usize) -> Option<u32> {
         let (left, mid, right) = self.segments.get(index).copied()?;
-        let mut value = 0;
-        if let Some(left) = left {
-            value = u32::from(left);
-        }
+        let mut value = u32::from(left.unwrap_or(0));
         value = value * 10 + u32::from(mid);
         if let Some(right) = right {
-            value = value * 10 + u32::from(right)
+            value = value * 10 + u32::from(right);
         }
         Some(value)
     }

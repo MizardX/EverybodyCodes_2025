@@ -1,3 +1,4 @@
+#![warn(clippy::all, clippy::pedantic, clippy::nursery)]
 #![allow(refining_impl_trait)]
 
 use std::error::Error;

@@ -130,15 +130,15 @@ impl Day for Day02 {
 
     fn part_2(&input: &Self::Input) -> usize {
         let mut count = 0;
-        for x in (input.x..=input.x + 1000).step_by(10) {
-            'y: for y in (input.y..=input.y + 1000).step_by(10) {
+        for x in (input.x..=input.x + 1_000).step_by(10) {
+            'y: for y in (input.y..=input.y + 1_000).step_by(10) {
                 let z = Complex::new(x, y);
                 let mut m = Complex::new(0, 0);
                 for _ in 0..100 {
                     m *= m;
-                    m /= 100000;
+                    m /= 100_000;
                     m += z;
-                    if m.exceeds(1000000) {
+                    if m.exceeds(1_000_000) {
                         continue 'y;
                     }
                 }
