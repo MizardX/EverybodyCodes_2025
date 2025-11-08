@@ -14,43 +14,24 @@ pub enum ParseError {
 }
 
 #[derive(Clone, PartialEq, Eq)]
-struct Fishbone {
-    segments: Vec<(Option<u8>, u8, Option<u8>)>,
+pub struct Sword {
+    id: u16,
+    fishbone: Vec<(Option<u8>, u8, Option<u8>)>,
 }
 
-impl From<&Sword> for Fishbone {
-    fn from(sword: &Sword) -> Self {
-        let mut segments = Vec::<(Option<u8>, u8, Option<u8>)>::new();
-        'outer: for &x in &sword.stats {
-            for (left, mid, right) in &mut segments {
-                if x < *mid && left.is_none() {
-                    *left = Some(x);
-                    continue 'outer;
-                }
-                if x > *mid && right.is_none() {
-                    *right = Some(x);
-                    continue 'outer;
-                }
-            }
-            segments.push((None, x, None));
-        }
-        Self { segments }
-    }
-}
-
-impl Fishbone {
+impl Sword {
     const fn len(&self) -> usize {
-        self.segments.len()
+        self.fishbone.len()
     }
 
-    fn spine(&self) -> u64 {
-        self.segments
-            .iter()
-            .fold(0, |val, &(_, mid, _)| val * 10 + u64::from(mid))
+    fn quality(&self) -> u64 {
+        self.fishbone.iter().fold(0, |val, &(_, mid, _)| {
+            val * if mid < 10 { 10 } else { 100 } + u64::from(mid)
+        })
     }
 
     fn segment(&self, index: usize) -> Option<u32> {
-        let (left, mid, right) = self.segments.get(index).copied()?;
+        let (left, mid, right) = self.fishbone.get(index).copied()?;
         let mut value = u32::from(left.unwrap_or(0));
         value = value * 10 + u32::from(mid);
         if let Some(right) = right {
@@ -60,56 +41,67 @@ impl Fishbone {
     }
 }
 
-impl Debug for Fishbone {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut lst = f.debug_list();
-        for &(left, mid, right) in &self.segments {
-            match (left, right) {
-                (None, None) => lst.entry(&(.., mid, ..)), // `..` debug output is just '..'
-                (Some(left), None) => lst.entry(&(left, mid, ..)),
-                (None, Some(right)) => lst.entry(&(.., mid, right)),
-                (Some(left), Some(right)) => lst.entry(&(left, mid, right)),
-            };
-        }
-        lst.finish()
-    }
-}
-
-impl Ord for Fishbone {
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.spine().cmp(&other.spine()).then_with(|| {
-            for ix in 0..self.len() {
-                let cmp = self.segment(ix).cmp(&other.segment(ix));
-                if cmp.is_ne() {
-                    return cmp;
-                }
-            }
-            Ordering::Equal
-        })
-    }
-}
-
-impl PartialOrd for Fishbone {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Sword {
-    id: u16,
-    stats: Vec<u8>,
-}
-
 impl FromStr for Sword {
     type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (id, stats) = s.split_once(':').ok_or(ParseError::SyntaxError)?;
+        let mut fishbone = Vec::<(Option<u8>, u8, Option<u8>)>::new();
+        'stats: for stat in stats.split(',') {
+            let stat: u8 = stat.parse()?;
+            for (left, mid, right) in &mut fishbone {
+                if left.is_none() && stat < *mid {
+                    *left = Some(stat);
+                    continue 'stats;
+                }
+                if right.is_none() && stat > *mid {
+                    *right = Some(stat);
+                    continue 'stats;
+                }
+            }
+            fishbone.push((None, stat, None));
+        }
         Ok(Self {
             id: id.parse()?,
-            stats: stats.split(',').map(str::parse).collect::<Result<_, _>>()?,
+            fishbone,
         })
+    }
+}
+
+impl Debug for Sword {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}: [", self.id)?;
+        for &(left, mid, right) in &self.fishbone {
+            match (left, right) {
+                (None, None) => write!(f, "(_, {mid}, _)"),
+                (Some(left), None) => write!(f, "({left}, {mid}, _)"),
+                (None, Some(right)) => write!(f, "(_, {mid}, {right})"),
+                (Some(left), Some(right)) => write!(f, "({left}, {mid}, {right})"),
+            }?;
+        }
+        write!(f, "]")
+    }
+}
+
+impl Ord for Sword {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.quality().cmp(&other.quality()) {
+            Ordering::Equal => (),
+            ord => return ord,
+        }
+        for ix in 0..self.len() {
+            match self.segment(ix).cmp(&other.segment(ix)) {
+                Ordering::Equal => (),
+                ord => return ord,
+            }
+        }
+        self.id.cmp(&other.id)
+    }
+}
+
+impl PartialOrd for Sword {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 
@@ -125,14 +117,14 @@ impl crate::Day for Day05 {
     }
 
     fn part_1(input: &Self::Input) -> u64 {
-        Fishbone::from(&input[0]).spine()
+        input[0].quality()
     }
 
     fn part_2(input: &Self::Input) -> u64 {
         let mut min = u64::MAX;
         let mut max = u64::MIN;
         for sword in input {
-            let spine = Fishbone::from(sword).spine();
+            let spine = sword.quality();
             min = min.min(spine);
             max = max.max(spine);
         }
@@ -140,16 +132,13 @@ impl crate::Day for Day05 {
     }
 
     fn part_3(input: &Self::Input) -> u64 {
-        let mut swords = input
-            .iter()
-            .map(|sword| (Fishbone::from(sword), sword.id))
-            .collect::<Vec<_>>();
+        let mut swords = input.clone();
         swords.sort_unstable();
         swords
             .iter()
             .rev()
             .zip(1..)
-            .map(|(pair, pos)| pos * u64::from(pair.1))
+            .map(|(sword, pos)| pos * u64::from(sword.id))
             .sum()
     }
 }
