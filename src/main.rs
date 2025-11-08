@@ -32,6 +32,7 @@ mod day_01;
 mod day_02;
 mod day_03;
 mod day_04;
+mod day_05;
 
 #[tokio::main]
 async fn main() {
@@ -61,6 +62,10 @@ async fn main() {
 
         if cli.day.is_none_or(|d| d == 4) {
             runner.run::<day_04::Day04>(4, cli.part).await;
+        }
+
+        if cli.day.is_none_or(|d| d == 5) {
+            runner.run::<day_05::Day05>(5, cli.part).await;
         }
 
         println!();
