@@ -44,9 +44,9 @@ impl Fishbone {
     }
 
     fn spine(&self) -> u64 {
-        self.segments.iter().fold(0, |val, &(_, mid, _)| {
-            val * if mid < 10 { 10 } else { 100 } + u64::from(mid)
-        })
+        self.segments
+            .iter()
+            .fold(0, |val, &(_, mid, _)| val * 10 + u64::from(mid))
     }
 
     fn segment(&self, index: usize) -> Option<u32> {
@@ -55,16 +55,10 @@ impl Fishbone {
         if let Some(left) = left {
             value = u32::from(left);
         }
-        value = if mid < 10 {
-            value * 10 + u32::from(mid)
-        } else {
-            value * 100 + u32::from(mid)
-        };
-        value = match right {
-            None => value,
-            Some(right) if right < 10 => value * 10 + u32::from(right),
-            Some(right) => value * 100 + u32::from(right),
-        };
+        value = value * 10 + u32::from(mid);
+        if let Some(right) = right {
+            value = value * 10 + u32::from(right)
+        }
         Some(value)
     }
 }
