@@ -64,11 +64,13 @@ pub struct Runner {
     seed: Option<u16>,
 }
 
+const APP_USER_AGENT: &str = concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"),);
+
 impl Runner {
     pub fn save_cookie(&mut self, new_cookie: &str) {
         let cookie_fn = "./input/cookie.txt";
         std::fs::write(cookie_fn, new_cookie).expect("Write cookie file");
-        self.cookie = Some(Arc::from(new_cookie));
+        self.cookie = Some(Arc::from(format!("everybody-codes={new_cookie}").as_str()));
     }
     fn get_cookie(&mut self) -> Arc<str> {
         if let Some(cookie) = &self.cookie {
@@ -76,7 +78,10 @@ impl Runner {
         }
         let cookie_fn = "./input/cookie.txt";
         if std::fs::exists(cookie_fn).unwrap() {
-            self.cookie = Some(Arc::from(std::fs::read_to_string(cookie_fn).unwrap()));
+            let cookie_value = std::fs::read_to_string(cookie_fn).unwrap();
+            self.cookie = Some(Arc::from(
+                format!("everybody-codes={cookie_value}").as_str(),
+            ));
             return self.cookie.as_ref().unwrap().clone();
         }
         panic!("Cookie not found. Please use the `cookie` subcommand to set it");
@@ -84,10 +89,11 @@ impl Runner {
     fn cli_with_cookie(&mut self) -> Client {
         let jar = Jar::default();
         jar.add_cookie_str(
-            format!("everybody-codes={}", self.get_cookie()).as_str(),
+            &self.get_cookie(),
             &Url::parse("https://everybody.codes/").expect("Valid url"),
         );
         Client::builder()
+            .user_agent(APP_USER_AGENT)
             .cookie_provider(Arc::new(jar))
             .build()
             .expect("Build Client")
