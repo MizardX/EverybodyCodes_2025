@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::fmt::Debug;
 use std::str::FromStr;
 
 use thiserror::Error;
@@ -19,12 +21,12 @@ impl FromStr for Rule {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (left, right) = s.split_once(" > ").ok_or(ParseError::SyntaxError)?;
-        let &[before] = left.as_bytes() else {
+        let &[before @ (b'A'..=b'Z' | b'a'..=b'z')] = left.as_bytes() else {
             return Err(ParseError::SyntaxError);
         };
         let mut after = 0;
         for right in right.split(',') {
-            let &[right] = right.as_bytes() else {
+            let &[right @ (b'A'..=b'Z' | b'a'..=b'z')] = right.as_bytes() else {
                 return Err(ParseError::SyntaxError);
             };
             after |= 1 << (right - b'A');
@@ -33,9 +35,78 @@ impl FromStr for Rule {
     }
 }
 
+#[derive(Clone)]
+pub struct RuleSet {
+    rules: [u64; 58],
+}
+
+impl Debug for RuleSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut m = f.debug_map();
+        for ch in (b'A'..=b'Z').chain(b'a'..=b'z') {
+            let mask = self.rules[(ch - b'A') as usize];
+            if mask == 0 {
+                continue;
+            }
+            m.entry(
+                &(ch as char),
+                &(b'A'..=b'Z')
+                    .chain(b'a'..=b'z')
+                    .filter_map(|ch1| (mask & (1 << (ch1 - b'A')) != 0).then_some(ch1 as char))
+                    .collect::<Vec<_>>(),
+            );
+        }
+        m.finish()
+    }
+}
+
+impl RuleSet {
+    const fn is_valid(&self, before: u8, after: u8) -> bool {
+        (self.rules[(before - b'A') as usize] & (1 << (after - b'A'))) != 0
+    }
+
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "trailing_zeros never exceeds 64"
+    )]
+    const fn first_valid(&self, before: u8) -> Option<u8> {
+        let bits = self.rules[(before - b'A') as usize];
+        if bits != 0 {
+            Some(bits.trailing_zeros() as u8 + b'A')
+        } else {
+            None
+        }
+    }
+
+    #[expect(
+        clippy::cast_possible_truncation,
+        reason = "trailing_zeros never exceeds 64"
+    )]
+    const fn next_valid(&self, before: u8, after: u8) -> Option<u8> {
+        let mask = !(!0 << (after - b'A' + 1));
+        let bits = self.rules[(before - b'A') as usize] & !mask;
+        if bits != 0 {
+            let next = bits.trailing_zeros() as u8 + b'A';
+            Some(next)
+        } else {
+            None
+        }
+    }
+}
+
+impl FromIterator<Rule> for RuleSet {
+    fn from_iter<T: IntoIterator<Item = Rule>>(iter: T) -> Self {
+        let mut rules = [0; 58];
+        for rule in iter {
+            rules[(rule.before - b'A') as usize] |= rule.after;
+        }
+        Self { rules }
+    }
+}
+
 pub struct Input {
     names: Vec<String>,
-    rules: Vec<Rule>,
+    rules: RuleSet,
 }
 
 impl FromStr for Input {
@@ -69,109 +140,91 @@ impl crate::Day for Day07 {
     }
 
     fn part_1(input: &Self::Input) -> String {
-        'names: for name in &input.names {
-            let mut prev = name.as_bytes()[0];
-            for ch in name.bytes().skip(1) {
-                let Some(valid) = input
-                    .rules
-                    .iter()
-                    .find_map(|r| (r.before == prev).then_some(r.after))
-                else {
-                    continue 'names;
-                };
-                if valid & (1 << (ch - b'A')) != 0 {
-                    prev = ch;
-                } else {
-                    continue 'names;
-                }
-            }
-            return name.clone();
-        }
-        String::new()
+        input
+            .names
+            .iter()
+            .find(|name| is_valid(name, input))
+            .map_or_else(Default::default, Clone::clone)
     }
 
     fn part_2(input: &Self::Input) -> usize {
-        let mut sum = 0;
-        'names: for (name, index) in input.names.iter().zip(1..) {
-            let mut prev = name.as_bytes()[0];
-            for ch in name.bytes().skip(1) {
-                let Some(valid) = input
-                    .rules
-                    .iter()
-                    .find_map(|r| (r.before == prev).then_some(r.after))
-                else {
-                    continue 'names;
-                };
-                if valid & (1 << (ch - b'A')) != 0 {
-                    prev = ch;
-                } else {
-                    continue 'names;
-                }
-            }
-            sum += index;
-        }
-        sum
+        input
+            .names
+            .iter()
+            .zip(1..)
+            .filter_map(|(name, id)| is_valid(name, input).then_some(id))
+            .sum()
     }
 
     fn part_3(input: &Self::Input) -> usize {
-        fn inner(prev: u8, min_len: usize, max_len: usize, input: &Input) -> usize {
-            let mut sum = 0;
-            if min_len == 0 {
-                sum += 1;
-            }
-            if max_len == 0 {
-                return sum;
-            }
-            let Some(mut valid) = input
-                .rules
-                .iter()
-                .find_map(|r| (r.before == prev).then_some(r.after))
-            else {
-                return sum;
-            };
-            while valid != 0 {
-                let index = u8::try_from(valid.trailing_zeros()).unwrap();
-                valid &= !(1 << index);
-                let ch = b'A' + index;
-                sum += inner(ch, min_len.saturating_sub(1), max_len - 1, input);
-            }
-            sum
-        }
         let mut count = 0;
-        'names: for (name, index) in input.names.iter().zip(0..) {
-            if name.len() > 11
-                || input
-                    .names
-                    .iter()
-                    .zip(0..)
-                    .any(|(nm2, ix2)| ix2 != index && name.starts_with(nm2))
-            {
+        let mut names = input.names.iter().map(String::as_str).collect::<Vec<_>>();
+        names.sort_unstable();
+        names.dedup_by(|a, b| a.starts_with(*b));
+        let mut cache = HashMap::new();
+        for name in &names {
+            if name.len() > 11 {
                 continue;
             }
-            let mut prev = name.as_bytes()[0];
-            for ch in name.bytes().skip(1) {
-                let Some(valid) = input
-                    .rules
-                    .iter()
-                    .find_map(|r| (r.before == prev).then_some(r.after))
-                else {
-                    continue 'names;
-                };
-                if valid & (1 << (ch - b'A')) != 0 {
-                    prev = ch;
-                } else {
-                    continue 'names;
-                }
+            if is_valid(name, input) {
+                count += count_possible_continuations(
+                    name.bytes().last().unwrap(),
+                    7_usize.saturating_sub(name.len()),
+                    11 - name.len(),
+                    input,
+                    &mut cache,
+                );
             }
-            count += inner(
-                prev,
-                7_usize.saturating_sub(name.len()),
-                11 - name.len(),
-                input,
-            );
         }
         count
     }
+}
+
+fn is_valid(name: &str, input: &Input) -> bool {
+    let mut prev = name.as_bytes()[0];
+    for ch in name.bytes().skip(1) {
+        if input.rules.is_valid(prev, ch) {
+            prev = ch;
+        } else {
+            return false;
+        }
+    }
+    true
+}
+
+fn count_possible_continuations(
+    prev: u8,
+    min_len: usize,
+    max_len: usize,
+    input: &Input,
+    cache: &mut HashMap<(usize, u8), usize>,
+) -> usize {
+    let mut sum = 0;
+    if min_len == 0 {
+        sum += 1;
+    }
+    if max_len == 0 {
+        return sum;
+    }
+    if let Some(&old) = cache.get(&(max_len, prev)) {
+        return old;
+    }
+    if let Some(mut ch) = input.rules.first_valid(prev) {
+        sum +=
+            count_possible_continuations(ch, min_len.saturating_sub(1), max_len - 1, input, cache);
+        while let Some(ch1) = input.rules.next_valid(prev, ch) {
+            sum += count_possible_continuations(
+                ch1,
+                min_len.saturating_sub(1),
+                max_len - 1,
+                input,
+                cache,
+            );
+            ch = ch1;
+        }
+    }
+    cache.insert((max_len, prev), sum);
+    sum
 }
 
 #[cfg(test)]
