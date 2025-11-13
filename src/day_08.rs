@@ -3,12 +3,19 @@ use std::num::ParseIntError;
 pub struct Day08;
 
 impl crate::Day for Day08 {
-    type Input = Vec<u16>;
+    type Input = Vec<(u16, u16)>;
 
     type ParseError = ParseIntError;
 
     fn parse(input: &str) -> Result<Self::Input, Self::ParseError> {
-        input.split(',').map(str::parse).collect()
+        let sequence: Vec<u16> = input.split(',').map(str::parse).collect::<Result<_, _>>()?;
+        let mut sequence: Vec<(u16, u16)> = sequence
+            .iter()
+            .zip(&sequence[1..])
+            .map(|(&x, &y)| (x.min(y), x.max(y)))
+            .collect();
+        sequence.sort_unstable();
+        Ok(sequence)
     }
 
     fn part_1(input: &Self::Input) -> u64 {
@@ -19,14 +26,14 @@ impl crate::Day for Day08 {
         all_crossings(input, 256)
     }
 
-    fn part_3(input: &Self::Input) -> usize {
+    fn part_3(input: &Self::Input) -> i32 {
         best_cut(input, 256)
     }
 }
 
-fn center_crossings(sequence: &[u16], nails: u16) -> u64 {
+fn center_crossings(sequence: &[(u16, u16)], nails: u16) -> u64 {
     let mut count = 0;
-    for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
+    for &(x, y) in sequence {
         if x.abs_diff(y) == nails / 2 {
             count += 1;
         }
@@ -34,55 +41,43 @@ fn center_crossings(sequence: &[u16], nails: u16) -> u64 {
     count
 }
 
-fn all_crossings(sequence: &[u16], nails: usize) -> usize {
+fn all_crossings(sequence: &[(u16, u16)], _nails: usize) -> usize {
     let mut count = 0;
-    let mut edges = vec![vec![]; nails];
-    for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
-        edges[x as usize - 1].push(y);
-        edges[y as usize - 1].push(x);
-    }
-    for e in &mut edges {
-        e.sort_unstable();
-    }
-    for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
-        let low = x.min(y);
-        let high = x.max(y);
-        for z in low + 1..high {
-            count += edges[z as usize - 1].len()
-                - binary_count_range(&edges[z as usize - 1], &low, &high);
+    for (i, &(s1, e1)) in sequence.iter().enumerate() {
+        for &(s2, e2) in &sequence[..i] {
+            count += usize::from(s2 < s1 && e2 > s1 && e2 < e1);
         }
     }
-    count / 2
+    count
 }
 
-fn best_cut(sequence: &[u16], nails: u16) -> usize {
-    let mut edges = vec![vec![]; usize::from(nails)];
-    for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
+fn best_cut(sequence: &[(u16, u16)], nails: u16) -> i32 {
+    let mut count = 0;
+    let mut edges = vec![vec![]; nails as usize];
+    let mut diffs = vec![0_i32; nails as usize + 1];
+    for &(x, y) in sequence {
         edges[x as usize - 1].push(y);
-        edges[y as usize - 1].push(x);
+        diffs[x as usize] += 1;
+        diffs[y as usize - 1] -= 1;
     }
-    for e in &mut edges {
-        e.sort_unstable();
-    }
-    let mut max_count = 0;
-    for a in 1..nails {
-        let mut count = 0;
-        for b in a + 2..=nails {
-            // How many lines that go exactly from a to b
-            let count_coincidents = binary_count_range(&edges[b as usize - 1], &a, &a);
-            // How many lines that goes from b-1 to outside of a..=b
-            count +=
-                edges[b as usize - 2].len() - binary_count_range(&edges[b as usize - 2], &a, &b);
-            // How many lines that goes from b to inside of a+1..b
-            count -= binary_count_range(&edges[b as usize - 1], &(a + 1), &(b - 1));
-            max_count = max_count.max(count + count_coincidents);
+    for a in 1..nails - 1 {
+        for &b in &edges[a as usize - 1] {
+            diffs[b as usize - 1] += 2;
+            diffs[b as usize] -= 1;
+        }
+        if a > 1 {
+            for &b in &edges[a as usize - 2] {
+                diffs[b as usize - 1] -= 1;
+                diffs[b as usize] += 2;
+            }
+        }
+        let mut cuts = 0;
+        for &add in &diffs[a as usize + 1..nails as usize] {
+            cuts += add;
+            count = count.max(cuts);
         }
     }
-    max_count
-}
-
-fn binary_count_range<T: Ord>(sorted: &[T], min: &T, max: &T) -> usize {
-    sorted.partition_point(|x| x <= max) - sorted.partition_point(|x| x < min)
+    count
 }
 
 #[cfg(test)]
