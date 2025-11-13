@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::num::ParseIntError;
 
 pub struct Day08;
@@ -16,11 +15,11 @@ impl crate::Day for Day08 {
         center_crossings(input, 32)
     }
 
-    fn part_2(input: &Self::Input) -> u64 {
-        all_crossings(input)
+    fn part_2(input: &Self::Input) -> usize {
+        all_crossings(input, 256)
     }
 
-    fn part_3(input: &Self::Input) -> impl std::fmt::Display {
+    fn part_3(input: &Self::Input) -> usize {
         best_cut(input, 256)
     }
 }
@@ -35,50 +34,55 @@ fn center_crossings(sequence: &[u16], nails: u16) -> u64 {
     count
 }
 
-fn all_crossings(sequence: &[u16]) -> u64 {
+fn all_crossings(sequence: &[u16], nails: usize) -> usize {
     let mut count = 0;
-    let mut edges = vec![HashMap::<u16, u16>::new(); 256];
+    let mut edges = vec![vec![]; nails];
     for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
-        for z1 in x.min(y) + 1..x.max(y) {
-            for (&z2, &cnt) in &edges[z1 as usize - 1] {
-                if !(x.min(y)..=x.max(y)).contains(&z2) {
-                    count += u64::from(cnt);
-                }
-            }
-        }
-        *edges[x as usize - 1].entry(y).or_default() += 1;
-        *edges[y as usize - 1].entry(x).or_default() += 1;
+        edges[x as usize - 1].push(y);
+        edges[y as usize - 1].push(x);
     }
-    count
+    for e in &mut edges {
+        e.sort_unstable();
+    }
+    for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
+        let low = x.min(y);
+        let high = x.max(y);
+        for z in low + 1..high {
+            count += edges[z as usize - 1].len()
+                - binary_count_range(&edges[z as usize - 1], &low, &high);
+        }
+    }
+    count / 2
 }
 
-fn best_cut(sequence: &[u16], nails: u16) -> u64 {
-    let mut edges = vec![HashMap::<u16, u16>::new(); 256];
+fn best_cut(sequence: &[u16], nails: u16) -> usize {
+    let mut edges = vec![vec![]; usize::from(nails)];
     for (&x, &y) in sequence.iter().zip(&sequence[1..]) {
-        *edges[x as usize - 1].entry(y).or_default() += 1;
-        *edges[y as usize - 1].entry(x).or_default() += 1;
+        edges[x as usize - 1].push(y);
+        edges[y as usize - 1].push(x);
+    }
+    for e in &mut edges {
+        e.sort_unstable();
     }
     let mut max_count = 0;
     for a in 1..nails {
         let mut count = 0;
         for b in a + 2..=nails {
             // How many lines that go exactly from a to b
-            let count_coincidents =
-                u64::from(edges[b as usize - 1].get(&a).copied().unwrap_or_default());
+            let count_coincidents = binary_count_range(&edges[b as usize - 1], &a, &a);
             // How many lines that goes from b-1 to outside of a..=b
-            count += edges[b as usize - 2]
-                .iter()
-                .filter_map(|(k, v)| (!(a..=b).contains(k)).then_some(u64::from(*v)))
-                .sum::<u64>();
+            count +=
+                edges[b as usize - 2].len() - binary_count_range(&edges[b as usize - 2], &a, &b);
             // How many lines that goes from b to inside of a+1..b
-            count -= edges[b as usize - 1]
-                .iter()
-                .filter_map(|(k, v)| ((a + 1..b).contains(k)).then_some(u64::from(*v)))
-                .sum::<u64>();
+            count -= binary_count_range(&edges[b as usize - 1], &(a + 1), &(b - 1));
             max_count = max_count.max(count + count_coincidents);
         }
     }
     max_count
+}
+
+fn binary_count_range<T: Ord>(sorted: &[T], min: &T, max: &T) -> usize {
+    sorted.partition_point(|x| x <= max) - sorted.partition_point(|x| x < min)
 }
 
 #[cfg(test)]
@@ -101,7 +105,7 @@ mod tests {
     #[test]
     fn test_part_2() {
         let input = Day08::parse(EXAMPLE2).unwrap();
-        let result = all_crossings(&input);
+        let result = all_crossings(&input, 8);
         assert_eq!(result, 21);
     }
 
