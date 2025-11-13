@@ -59,17 +59,23 @@ fn best_cut(sequence: &[u16], nails: u16) -> u64 {
         *edges[y as usize - 1].entry(x).or_default() += 1;
     }
     let mut max_count = 0;
-    for y in 2..=nails {
-        for x in 1..y {
-            let mut count = u64::from(edges[x as usize].get(&y).copied().unwrap_or_default());
-            for z in x + 1..y {
-                for (&z1, &cnt) in &edges[z as usize - 1] {
-                    if !(x..=y).contains(&z1) {
-                        count += u64::from(cnt);
-                    }
-                }
-            }
-            max_count = max_count.max(count);
+    for a in 1..nails {
+        let mut count = 0;
+        for b in a + 2..=nails {
+            // How many lines that go exactly from a to b
+            let count_coincidents =
+                u64::from(edges[b as usize - 1].get(&a).copied().unwrap_or_default());
+            // How many lines that goes from b-1 to outside of a..=b
+            count += edges[b as usize - 2]
+                .iter()
+                .filter_map(|(k, v)| (!(a..=b).contains(k)).then_some(u64::from(*v)))
+                .sum::<u64>();
+            // How many lines that goes from b to inside of a+1..b
+            count -= edges[b as usize - 1]
+                .iter()
+                .filter_map(|(k, v)| ((a + 1..b).contains(k)).then_some(u64::from(*v)))
+                .sum::<u64>();
+            max_count = max_count.max(count + count_coincidents);
         }
     }
     max_count
