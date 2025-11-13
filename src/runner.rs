@@ -1,3 +1,4 @@
+use std::hint::black_box;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -18,6 +19,8 @@ pub struct Cli {
     pub day: Option<u16>,
     #[arg(short, long, value_parser = clap::value_parser!(u16).range(1..=3))]
     pub part: Option<u16>,
+    #[arg(short, long, value_parser = clap::value_parser!(u32).range(1..))]
+    pub repeat: Option<u32>,
     #[command(subcommand)]
     pub command: Option<Command>,
 }
@@ -165,7 +168,7 @@ impl Runner {
         }
     }
 
-    pub async fn run<D: Day>(&mut self, day: u16, part_filter: Option<u16>) {
+    pub async fn run<D: Day>(&mut self, day: u16, part_filter: Option<u16>, repeat: Option<u32>) {
         println!();
         for part in 1..=3 {
             if part_filter.is_none_or(|p| p == part) {
@@ -182,21 +185,45 @@ impl Runner {
                         continue;
                     }
                 };
+                let repeat = repeat.unwrap_or(1).max(1);
                 let time_parsed = Instant::now();
                 match part {
-                    1 => println!("Quest {day} - Part 1: {}", D::part_1(&input)),
-                    2 => println!("Quest {day} - Part 2: {}", D::part_2(&input)),
-                    _ => println!("Quest {day} - Part 3: {}", D::part_3(&input)),
+                    1 => {
+                        let result = D::part_1(&input);
+                        for _ in 1..repeat {
+                            black_box(D::part_1(&input));
+                        }
+                        println!("Quest {day} - Part 1: {result}");
+                    }
+                    2 => {
+                        let result = D::part_2(&input);
+                        for _ in 1..repeat {
+                            black_box(D::part_2(&input));
+                        }
+                        println!("Quest {day} - Part 2: {result}");
+                    }
+                    _ => {
+                        let result = D::part_3(&input);
+                        for _ in 1..repeat {
+                            black_box(D::part_3(&input));
+                        }
+                        println!("Quest {day} - Part 3: {result}");
+                    }
                 }
                 let time_complete = Instant::now();
                 println!(
                     "          parsing: {:?}",
                     time_parsed.duration_since(time_start)
                 );
-                println!(
+                print!(
                     "          runner: {:?}",
-                    time_complete.duration_since(time_parsed)
+                    time_complete.duration_since(time_parsed) / repeat
                 );
+                if repeat > 1 {
+                    println!(" ({repeat} samples)");
+                } else {
+                    println!();
+                }
                 println!();
             }
         }

@@ -53,35 +53,35 @@ async fn main() {
         // For each day:
 
         if cli.day.is_none_or(|d| d == 1) {
-            runner.run::<day_01::Day01>(1, cli.part).await;
+            runner.run::<day_01::Day01>(1, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 2) {
-            runner.run::<day_02::Day02>(2, cli.part).await;
+            runner.run::<day_02::Day02>(2, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 3) {
-            runner.run::<day_03::Day03>(3, cli.part).await;
+            runner.run::<day_03::Day03>(3, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 4) {
-            runner.run::<day_04::Day04>(4, cli.part).await;
+            runner.run::<day_04::Day04>(4, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 5) {
-            runner.run::<day_05::Day05>(5, cli.part).await;
+            runner.run::<day_05::Day05>(5, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 6) {
-            runner.run::<day_06::Day06>(6, cli.part).await;
+            runner.run::<day_06::Day06>(6, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 7) {
-            runner.run::<day_07::Day07>(7, cli.part).await;
+            runner.run::<day_07::Day07>(7, cli.part, cli.repeat).await;
         }
 
         if cli.day.is_none_or(|d| d == 8) {
-            runner.run::<day_08::Day08>(8, cli.part).await;
+            runner.run::<day_08::Day08>(8, cli.part, cli.repeat).await;
         }
 
         println!();
