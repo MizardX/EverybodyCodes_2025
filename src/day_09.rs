@@ -12,11 +12,18 @@ pub enum ParseError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[repr(u8)]
 pub enum Nucleobase {
-    C,
-    G,
-    A,
-    T,
+    C = 1 << 0,
+    G = 1 << 1,
+    A = 1 << 2,
+    T = 1 << 3,
+}
+
+impl From<Nucleobase> for u128 {
+    fn from(value: Nucleobase) -> Self {
+        value as Self
+    }
 }
 
 impl TryFrom<u8> for Nucleobase {
@@ -35,7 +42,7 @@ impl TryFrom<u8> for Nucleobase {
 
 pub struct ScaleDNA {
     id: usize,
-    dna: Vec<Nucleobase>,
+    mask: [u128; 4],
 }
 
 impl FromStr for ScaleDNA {
@@ -44,11 +51,12 @@ impl FromStr for ScaleDNA {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let (id, dna) = s.split_once(':').ok_or(ParseError::SyntaxError)?;
         let id = id.parse()?;
-        let dna = dna
-            .bytes()
-            .map(TryFrom::try_from)
-            .collect::<Result<_, _>>()?;
-        Ok(Self { id, dna })
+        let mut mask = [0_u128; 4];
+        for (ix, nucl) in dna.bytes().enumerate() {
+            let nucl: Nucleobase = nucl.try_into()?;
+            mask[ix >> 5] |= (nucl as u128) << ((ix & 0x1f) << 2);
+        }
+        Ok(Self { id, mask })
     }
 }
 
@@ -126,7 +134,7 @@ impl crate::Day for Day09 {
         input.lines().map(str::parse).collect()
     }
 
-    fn part_1(input: &Self::Input) -> usize {
+    fn part_1(input: &Self::Input) -> u32 {
         for (child_ix, child) in input.iter().enumerate() {
             let parent1 = &input[(child_ix + 1) % 3];
             let parent2 = &input[(child_ix + 2) % 3];
@@ -137,7 +145,7 @@ impl crate::Day for Day09 {
         0
     }
 
-    fn part_2(input: &Self::Input) -> usize {
+    fn part_2(input: &Self::Input) -> u32 {
         let mut scores = 0;
         'next_child: for (child_ix, child) in input.iter().enumerate() {
             for (parent1_ix, parent1) in input.iter().enumerate() {
@@ -191,19 +199,15 @@ impl crate::Day for Day09 {
     }
 }
 
-fn degree_of_similarity(child: &ScaleDNA, parent1: &ScaleDNA, parent2: &ScaleDNA) -> Option<usize> {
+fn degree_of_similarity(child: &ScaleDNA, parent1: &ScaleDNA, parent2: &ScaleDNA) -> Option<u32> {
     let mut score1 = 0;
     let mut score2 = 0;
-    for ((p1, p2), c1) in parent1.dna.iter().zip(&parent2.dna).zip(&child.dna) {
-        match (c1 == p1, c1 == p2) {
-            (true, true) => {
-                score1 += 1;
-                score2 += 1;
-            }
-            (true, false) => score1 += 1,
-            (false, true) => score2 += 1,
-            (false, false) => return None,
+    for ((&p1, &p2), &c1) in parent1.mask.iter().zip(&parent2.mask).zip(&child.mask) {
+        if (p1 | p2) & c1 != c1 {
+            return None;
         }
+        score1 += (p1 & c1).count_ones();
+        score2 += (p2 & c1).count_ones();
     }
     Some(score1 * score2)
 }
@@ -242,13 +246,13 @@ mod tests {
     ";
 
     #[test_case(EXAMPLE1 => 414)]
-    fn test_part_1(input: &str) -> usize {
+    fn test_part_1(input: &str) -> u32 {
         let scales = Day09::parse(input).unwrap();
         Day09::part_1(&scales)
     }
 
     #[test_case(EXAMPLE2 => 1245)]
-    fn test_part_2(input: &str) -> usize {
+    fn test_part_2(input: &str) -> u32 {
         let scales = Day09::parse(input).unwrap();
         Day09::part_2(&scales)
     }
