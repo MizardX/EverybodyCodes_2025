@@ -38,6 +38,7 @@ mod day_06;
 mod day_07;
 mod day_08;
 mod day_09;
+mod day_10;
 
 #[tokio::main]
 async fn main() {
@@ -87,6 +88,10 @@ async fn main() {
 
         if cli.day.is_none_or(|d| d == 9) {
             runner.run::<day_09::Day09>(9, cli.part, cli.repeat).await;
+        }
+
+        if cli.day.is_none_or(|d| d == 10) {
+            runner.run::<day_10::Day10>(10, cli.part, cli.repeat).await;
         }
 
         println!();
