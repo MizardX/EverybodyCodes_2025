@@ -1,3 +1,4 @@
+use std::cmp::Reverse;
 use std::num::ParseIntError;
 use std::str::FromStr;
 
@@ -40,9 +41,42 @@ impl TryFrom<u8> for Nucleobase {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ScaleDNA {
     id: usize,
     mask: [u128; 4],
+}
+
+impl ScaleDNA {
+    fn except(&self, other: &Self) -> Self {
+        Self {
+            id: other.id,
+            mask: [0, 1, 2, 3].map(|ix| self.mask[ix] & !other.mask[ix]),
+        }
+    }
+
+    fn intersect(&self, other: &Self) -> Self {
+        Self {
+            id: other.id,
+            mask: [0, 1, 2, 3].map(|ix| self.mask[ix] & other.mask[ix]),
+        }
+    }
+
+    fn count_ones(&self) -> u32 {
+        self.mask.iter().map(|bits| bits.count_ones()).sum()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.mask == [0; 4]
+    }
+
+    fn degree_of_similarity(&self, parent1: &Self, parent2: &Self) -> Option<u32> {
+        self.except(parent1).except(parent2).is_zero().then(|| {
+            let score1 = self.intersect(parent1).count_ones();
+            let score2 = self.intersect(parent2).count_ones();
+            score1 * score2
+        })
+    }
 }
 
 impl FromStr for ScaleDNA {
@@ -72,15 +106,15 @@ struct UnionFind {
 
 impl UnionFind {
     fn new(input: &[ScaleDNA]) -> Self {
-        let nodes = input
+        let mut nodes = input
             .iter()
-            .enumerate()
-            .map(|(ix, scale)| UFNode {
-                parent: ix,
+            .map(|scale| UFNode {
+                parent: scale.id - 1,
                 size: 1,
                 sum: scale.id,
             })
-            .collect();
+            .collect::<Vec<_>>();
+        nodes.sort_unstable_by_key(|n| n.parent);
         Self { nodes }
     }
 
@@ -138,7 +172,7 @@ impl crate::Day for Day09 {
         for (child_ix, child) in input.iter().enumerate() {
             let parent1 = &input[(child_ix + 1) % 3];
             let parent2 = &input[(child_ix + 2) % 3];
-            if let Some(similarity) = degree_of_similarity(child, parent1, parent2) {
+            if let Some(similarity) = child.degree_of_similarity(parent1, parent2) {
                 return similarity;
             }
         }
@@ -147,17 +181,21 @@ impl crate::Day for Day09 {
 
     fn part_2(input: &Self::Input) -> u32 {
         let mut scores = 0;
-        'next_child: for (child_ix, child) in input.iter().enumerate() {
-            for (parent1_ix, parent1) in input.iter().enumerate() {
-                if parent1_ix == child_ix {
+        let mut ordered = input.clone();
+        'next_child: for child in input {
+            let top_3 = ordered
+                .select_nth_unstable_by_key(4, |p| Reverse(child.intersect(p).count_ones()))
+                .0;
+            for (ix, p1) in top_3.iter().enumerate() {
+                if p1.id == child.id {
                     continue;
                 }
-                for (parent2_ix, parent2) in input[..parent1_ix].iter().enumerate() {
-                    if parent2_ix == child_ix {
+                for p2 in &top_3[..ix] {
+                    if p2.id == child.id {
                         continue;
                     }
-                    if let Some(similarity) = degree_of_similarity(child, parent1, parent2) {
-                        scores += similarity;
+                    if let Some(score) = child.degree_of_similarity(p1, p2) {
+                        scores += score;
                         continue 'next_child;
                     }
                 }
@@ -168,18 +206,22 @@ impl crate::Day for Day09 {
 
     fn part_3(input: &Self::Input) -> usize {
         let mut uf = UnionFind::new(input);
-        'child: for (child_ix, child) in input.iter().enumerate() {
-            for (parent1_ix, parent1) in input.iter().enumerate() {
-                if parent1_ix == child_ix {
+        let mut ordered = input.clone();
+        'child: for child in input {
+            let top_n = ordered
+                .select_nth_unstable_by_key(7, |p| Reverse(child.intersect(p).count_ones()))
+                .0;
+            for (ix, parent1) in top_n.iter().enumerate() {
+                if parent1.id == child.id {
                     continue;
                 }
-                for (parent2_ix, parent2) in input[..parent1_ix].iter().enumerate() {
-                    if parent2_ix == child_ix {
+                for parent2 in &top_n[..ix] {
+                    if parent2.id == child.id {
                         continue;
                     }
-                    if degree_of_similarity(child, parent1, parent2).is_some() {
-                        uf.union(parent1_ix, child_ix);
-                        uf.union(parent2_ix, child_ix);
+                    if child.degree_of_similarity(parent1, parent2).is_some() {
+                        uf.union(parent1.id - 1, child.id - 1);
+                        uf.union(parent2.id - 1, child.id - 1);
                         continue 'child;
                     }
                 }
@@ -197,19 +239,6 @@ impl crate::Day for Day09 {
         }
         max_size_sum
     }
-}
-
-fn degree_of_similarity(child: &ScaleDNA, parent1: &ScaleDNA, parent2: &ScaleDNA) -> Option<u32> {
-    let mut score1 = 0;
-    let mut score2 = 0;
-    for ((&p1, &p2), &c1) in parent1.mask.iter().zip(&parent2.mask).zip(&child.mask) {
-        if (p1 | p2) & c1 != c1 {
-            return None;
-        }
-        score1 += (p1 & c1).count_ones();
-        score2 += (p2 & c1).count_ones();
-    }
-    Some(score1 * score2)
 }
 
 #[cfg(test)]
