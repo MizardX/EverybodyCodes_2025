@@ -1,14 +1,34 @@
 use std::num::ParseIntError;
 
-// use thiserror::Error;
+fn phase_1(nums: &mut [u64]) -> bool {
+    let mut any_change = false;
+    for i in 0..nums.len() - 1 {
+        if nums[i] > nums[i + 1] {
+            nums[i] -= 1;
+            nums[i + 1] += 1;
+            any_change = true;
+        }
+    }
+    any_change
+}
 
-// #[derive(Debug, Error)]
-// pub enum ParseError {
-//     #[error("Syntax error")]
-//     SyntaxError,
-//     #[error(transparent)]
-//     InvalidNumber(#[from] ParseIntError),
-// }
+fn phase_2(nums: &mut [u64]) -> bool {
+    let mut any_change = false;
+    for i in 0..nums.len() - 1 {
+        if nums[i] < nums[i + 1] {
+            nums[i] += 1;
+            nums[i + 1] -= 1;
+            any_change = true;
+        }
+    }
+    any_change
+}
+
+fn phase_2_fast(nums: &[u64]) -> u64 {
+    let sum = nums.iter().copied().sum::<u64>();
+    let avg = sum / u64::try_from(nums.len()).unwrap();
+    nums.iter().map(|x| avg.abs_diff(*x)).sum::<u64>() / 2
+}
 
 pub struct Day11;
 
@@ -23,75 +43,27 @@ impl crate::Day for Day11 {
 
     fn part_1(input: &Self::Input) -> u64 {
         let mut nums = input.clone();
-        let n = nums.len();
-        let mut phase = 1;
-        for t in 0..10 {
-            if phase == 1 {
-                let mut any_change = false;
-                for i in 0..n - 1 {
-                    if nums[i] > nums[i + 1] {
-                        nums[i] -= 1;
-                        nums[i + 1] += 1;
-                        any_change = true;
-                    }
-                }
-                println!("[{t}]: 1st: {nums:?}");
-                if any_change {
-                    continue;
-                }
-                phase = 2;
-            }
-            for i in 0..n - 1 {
-                if nums[i] < nums[i + 1] {
-                    nums[i] += 1;
-                    nums[i + 1] -= 1;
-                }
-            }
-            println!("[{t}]: 2nd: {nums:?}");
+        let mut turns = 0;
+        while turns < 10 && phase_1(&mut nums) {
+            turns += 1;
+        }
+        while turns < 10 && phase_2(&mut nums) {
+            turns += 1;
         }
         nums.into_iter().zip(1..).map(|(x, c)| x * c).sum()
     }
 
     fn part_2(input: &Self::Input) -> u64 {
         let mut nums = input.clone();
-        let n = nums.len();
         let mut turns = 0;
-        let mut phase = 1;
-        let mut any_change = true;
-        while any_change {
-            any_change = false;
-            if phase == 1 {
-                for i in 0..n - 1 {
-                    if nums[i] > nums[i + 1] {
-                        nums[i] -= 1;
-                        nums[i + 1] += 1;
-                        any_change = true;
-                    }
-                }
-                if any_change {
-                    turns += 1;
-                    continue;
-                }
-                phase = 2;
-            }
-            for i in 0..n - 1 {
-                if nums[i] < nums[i + 1] {
-                    nums[i] += 1;
-                    nums[i + 1] -= 1;
-                    any_change = true;
-                }
-            }
-            if any_change {
-                turns += 1;
-            }
+        while phase_1(&mut nums) {
+            turns += 1;
         }
-        turns
+        turns + phase_2_fast(&nums)
     }
 
     fn part_3(input: &Self::Input) -> u64 {
-        let sum = input.iter().copied().sum::<u64>();
-        let avg = sum / u64::try_from(input.len()).unwrap();
-        input.iter().map(|x| avg.abs_diff(*x)).sum::<u64>() / 2
+        phase_2_fast(input)
     }
 }
 
