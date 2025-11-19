@@ -12,6 +12,7 @@ pub enum ParseError {
     InvalidNumber(#[from] ParseIntError),
 }
 
+#[derive(Debug, Clone)]
 pub struct Grid<T> {
     data: Vec<T>,
     width: usize,
@@ -65,9 +66,13 @@ impl<T> IndexMut<(usize, usize)> for Grid<T> {
     }
 }
 
-fn fireball(grid: &Grid<u8>, positions: &[(usize, usize)]) -> u64 {
-    let mut pending = VecDeque::<(usize, usize)>::new();
+fn fireball_simple(grid: &Grid<u8>, positions: &[(usize, usize)]) -> u64 {
     let mut visited = Grid::new(vec![false; grid.data.len()], grid.width, grid.height);
+    fireball(grid, positions, &mut visited)
+}
+
+fn fireball(grid: &Grid<u8>, positions: &[(usize, usize)], visited: &mut Grid<bool>) -> u64 {
+    let mut pending = VecDeque::<(usize, usize)>::new();
     let mut visited_count = 0;
     for &pos in positions {
         pending.push_back(pos);
@@ -107,44 +112,61 @@ impl crate::Day for Day12 {
     }
 
     fn part_1(input: &Self::Input) -> u64 {
-        fireball(input, &[(0, 0)])
+        fireball_simple(input, &[(0, 0)])
     }
 
     fn part_2(input: &Self::Input) -> u64 {
-        fireball(input, &[(0, 0), (input.height - 1, input.width - 1)])
+        fireball_simple(input, &[(0, 0), (input.height - 1, input.width - 1)])
     }
 
-    fn part_3(input: &Self::Input) -> u64 {
-        let mut best_score = 0;
-        let mut best_pos1 = (0, 0);
-        for r in 0..input.height {
-            for c in 0..input.width {
-                let score = fireball(input, &[(r, c)]);
-                if score > best_score {
-                    best_score = score;
-                    best_pos1 = (r, c);
-                }
-            }
+    fn part_3(input: &Self::Input) -> usize {
+        let mut visited = Grid::new(vec![false; input.data.len()], input.width, input.height);
+        let mut candidates = (0..input.height)
+            .flat_map(|r| (0..input.width).map(move |c| (r, c)))
+            .collect::<Vec<_>>();
+        candidates.sort_unstable_by_key(|&pos| input[pos]);
+        let mut sets = Vec::new();
+        while let Some(pos) = candidates.pop() {
+            visited.data.fill(false);
+            let score = fireball(input, &[pos], &mut visited);
+            sets.push((score, visited.clone()));
         }
-        let mut best_pos2 = (0, 0);
-        for r in 0..input.height {
-            for c in 0..input.width {
-                let score = fireball(input, &[best_pos1, (r, c)]);
-                if score > best_score {
-                    best_score = score;
-                    best_pos2 = (r, c);
-                }
-            }
-        }
-        for r in 0..input.height {
-            for c in 0..input.width {
-                let score = fireball(input, &[best_pos1, best_pos2, (r, c)]);
-                if score > best_score {
-                    best_score = score;
-                }
-            }
-        }
-        best_score
+        let first = sets.iter().max_by_key(|&(s, _)| s).unwrap();
+        let second = sets
+            .iter()
+            .max_by_key(|(_, v)| {
+                first
+                    .1
+                    .data
+                    .iter()
+                    .zip(&v.data)
+                    .filter(|&(&a, &x)| x && !a)
+                    .count()
+            })
+            .unwrap();
+
+        let third = sets
+            .iter()
+            .max_by_key(|(_, v)| {
+                first
+                    .1
+                    .data
+                    .iter()
+                    .zip(&second.1.data)
+                    .zip(&v.data)
+                    .filter(|&((&a, &b), &x)| !a && !b && x)
+                    .count()
+            })
+            .unwrap();
+
+        first
+            .1
+            .data
+            .iter()
+            .zip(&second.1.data)
+            .zip(&third.1.data)
+            .filter(|&((&a, &b), &c)| a | b | c)
+            .count()
     }
 }
 
