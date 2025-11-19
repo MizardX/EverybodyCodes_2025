@@ -1,15 +1,16 @@
 use std::hint::black_box;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use aes::Aes256;
 use aes::cipher::{BlockDecryptMut, KeyIvInit, block_padding::Pkcs7};
 use cbc::Decryptor;
 use clap::Parser;
 use clap_derive::Subcommand;
-use reqwest::cookie::Jar;
-use reqwest::{Client, Url};
 use serde::Deserialize;
+use ureq::config::Config;
+use ureq::http::Uri;
+use ureq::{Agent, Cookie};
 
 use crate::Day;
 
@@ -89,58 +90,63 @@ impl Runner {
         }
         panic!("Cookie not found. Please use the `cookie` subcommand to set it");
     }
-    fn cli_with_cookie(&mut self) -> Client {
-        let jar = Jar::default();
-        jar.add_cookie_str(
-            &self.get_cookie(),
-            &Url::parse("https://everybody.codes/").expect("Valid url"),
-        );
-        Client::builder()
+    fn cli_with_cookie(&mut self) -> Agent {
+        let config: Config = Agent::config_builder()
+            .timeout_global(Some(Duration::from_secs(5)))
             .user_agent(APP_USER_AGENT)
-            .cookie_provider(Arc::new(jar))
-            .build()
-            .expect("Build Client")
+            .build();
+        let agent: Agent = config.into();
+        let uri = Uri::from_static("https://everybody.codes/");
+
+        let cookie = self.get_cookie().to_string();
+        agent
+            .cookie_jar_lock()
+            .insert(Cookie::parse(cookie, &uri).unwrap(), &uri)
+            .expect("Insert cookie");
+
+        agent
     }
-    async fn get_seed(&mut self) {
+    fn get_seed(&mut self) {
         let cli = self.cli_with_cookie();
 
-        let resp = cli
+        let user_info = cli
             .get("https://everybody.codes/api/user/me")
-            .send()
-            .await
-            .expect("request failed");
-
-        let user_info = resp.json::<UserInfo>().await.expect("json");
+            .call()
+            .expect("request failed")
+            .body_mut()
+            .read_json::<UserInfo>()
+            .expect("json");
 
         self.seed = Some(user_info.seed);
     }
-    pub async fn download(&mut self, day: u16) {
+    pub fn download(&mut self, day: u16) {
         let cli = self.cli_with_cookie();
 
-        let keyresp = cli
+        let keys = cli
             .get(format!(
                 "https://everybody.codes/api/event/2025/quest/{day}"
             ))
-            .send()
-            .await
-            .expect("request failed");
-
-        let keys = keyresp.json::<Keys>().await.expect("Request failed");
+            .call()
+            .expect("request failed")
+            .body_mut()
+            .read_json::<Keys>()
+            .expect("Request failed");
 
         if self.seed.is_none() {
-            self.get_seed().await;
+            self.get_seed();
         }
         let seed = self.seed.as_ref().expect("seed");
 
-        let resp = cli
+        let input = cli
             .get(format!(
                 "https://everybody-codes.b-cdn.net/assets/2025/{day}/input/{seed}.json"
             ))
-            .send()
-            .await
-            .expect("request failed");
+            .call()
+            .expect("request failed")
+            .body_mut()
+            .read_json::<InputData>()
+            .expect("json");
 
-        let input = resp.json::<InputData>().await.expect("json");
         for ((contents, key), part) in [
             (&input.first, &keys.key1),
             (&input.second, &keys.key2),
@@ -168,13 +174,13 @@ impl Runner {
         }
     }
 
-    pub async fn run<D: Day>(&mut self, day: u16, part_filter: Option<u16>, repeat: Option<u32>) {
+    pub fn run<D: Day>(&mut self, day: u16, part_filter: Option<u16>, repeat: Option<u32>) {
         println!();
         for part in 1..=3 {
             if part_filter.is_none_or(|p| p == part) {
                 let filename = format!("./input/day_{day:02}_part_{part}.txt");
                 if !std::fs::exists(&filename).unwrap() {
-                    self.download(day).await;
+                    self.download(day);
                 }
                 let time_start = Instant::now();
                 let input_text = std::fs::read_to_string(filename).unwrap();
