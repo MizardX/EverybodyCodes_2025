@@ -195,21 +195,21 @@ impl Runner {
                 let time_parsed = Instant::now();
                 match part {
                     1 => {
-                        let result = D::part_1(&input);
+                        let result = black_box(D::part_1(&input));
                         for _ in 1..repeat {
                             black_box(D::part_1(&input));
                         }
                         println!("Quest {day} - Part 1: {result}");
                     }
                     2 => {
-                        let result = D::part_2(&input);
+                        let result = black_box(D::part_2(&input));
                         for _ in 1..repeat {
                             black_box(D::part_2(&input));
                         }
                         println!("Quest {day} - Part 2: {result}");
                     }
                     _ => {
-                        let result = D::part_3(&input);
+                        let result = black_box(D::part_3(&input));
                         for _ in 1..repeat {
                             black_box(D::part_3(&input));
                         }
