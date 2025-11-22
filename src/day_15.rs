@@ -1,5 +1,4 @@
-use std::cmp::Reverse;
-use std::collections::{BinaryHeap, HashMap, HashSet};
+use std::collections::{HashSet, VecDeque};
 use std::num::ParseIntError;
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
@@ -225,37 +224,30 @@ impl Map {
         Self { xs, ys, walls }
     }
 
-    fn djikstra(&self, start: Pos, goal: Pos) -> u64 {
-        let mut pending = BinaryHeap::new();
-        let mut visited = HashMap::new();
+    fn bfs(&self, start: Pos, goal: Pos) -> u64 {
+        let mut pending = VecDeque::<((usize, usize), u64)>::new();
+        let mut visited = HashSet::<Pos>::new();
         let start_ixs = (
             self.xs.partition_point(|&x| x < start.x),
             self.ys.partition_point(|&y| y < start.y),
         );
-        visited.insert(start, 0);
-        pending.push((Reverse(0), start_ixs));
-        while let Some((Reverse(dist), (x_ix, y_ix))) = pending.pop() {
-            let pos = Pos::new(self.xs[x_ix], self.ys[y_ix]);
-            if *visited.get(&pos).expect("all pending should be in visited") < dist {
-                continue;
-            }
+        visited.insert(start);
+        pending.push_back((start_ixs, 0));
+        while let Some((pos_ix, dist)) = pending.pop_front() {
+            let pos = Pos::new(self.xs[pos_ix.0], self.ys[pos_ix.1]);
             if pos == goal {
                 return dist;
             }
-            for (dix_x, dix_y) in [(-1, 0), (0, -1), (1, 0), (0, 1)] {
+            for dix in [(-1, 0), (0, -1), (1, 0), (0, 1)] {
                 let next_ix = (
-                    x_ix.wrapping_add_signed(dix_x),
-                    y_ix.wrapping_add_signed(dix_y),
+                    pos_ix.0.wrapping_add_signed(dix.0),
+                    pos_ix.1.wrapping_add_signed(dix.1),
                 );
                 if next_ix.0 < self.xs.len() && next_ix.1 < self.ys.len() {
                     let next = Pos::new(self.xs[next_ix.0], self.ys[next_ix.1]);
-                    if !self.walls.contains(&next) {
+                    if !self.walls.contains(&next) && visited.insert(next) {
                         let next_dist = dist + pos.manhattan_dist(next);
-                        let old_dist = visited.entry(next).or_insert(u64::MAX);
-                        if *old_dist > next_dist {
-                            *old_dist = next_dist;
-                            pending.push((Reverse(next_dist), next_ix));
-                        }
+                        pending.push_back((next_ix, next_dist));
                     }
                 }
             }
@@ -267,7 +259,7 @@ impl Map {
 fn find_path(instructions: &[Instruction]) -> u64 {
     let (xs, ys) = compress_coordinates(instructions);
     let (walls, goal) = place_walls(instructions, &xs, &ys);
-    Map::new(xs, ys, walls).djikstra(Pos::new(0, 0), goal)
+    Map::new(xs, ys, walls).bfs(Pos::new(0, 0), goal)
 }
 
 pub struct Day15;
