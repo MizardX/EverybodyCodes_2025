@@ -136,6 +136,7 @@ impl Runner {
             self.get_seed();
         }
         let seed = self.seed.as_ref().expect("seed");
+        println!("seed = {seed:?}");
 
         let input = cli
             .get(format!(
