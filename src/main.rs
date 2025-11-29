@@ -48,6 +48,7 @@ mod day_16;
 mod day_17;
 mod day_18;
 mod day_19;
+mod day_20;
 
 fn main() {
     let mut runner = Runner::default();
@@ -136,6 +137,10 @@ fn main() {
 
         if cli.day.is_none_or(|d| d == 19) {
             runner.run::<day_19::Day19>(19, cli.part, cli.repeat);
+        }
+
+        if cli.day.is_none_or(|d| d == 20) {
+            runner.run::<day_20::Day20>(20, cli.part, cli.repeat);
         }
 
         println!();
