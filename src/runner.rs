@@ -136,11 +136,10 @@ impl Runner {
             self.get_seed();
         }
         let seed = self.seed.as_ref().expect("seed");
-        println!("seed = {seed:?}");
 
         let input = cli
             .get(format!(
-                "https://everybody-codes.b-cdn.net/assets/2025/{day}/input/{seed}.json"
+                "https://everybody.codes/assets/2025/{day}/input/{seed}.json"
             ))
             .call()
             .expect("request failed")
