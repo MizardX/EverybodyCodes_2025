@@ -38,7 +38,7 @@ impl FromStr for Opening {
     }
 }
 
-fn find_path(input: &[Opening]) -> i64 {
+fn find_path_bfs(input: &[Opening]) -> i64 {
     let mut prev_x = 0;
     let mut prev = vec![(0, 0)];
     let mut next = vec![];
@@ -78,6 +78,32 @@ fn find_path(input: &[Opening]) -> i64 {
     0
 }
 
+fn find_path_reachable(openings: &[Opening]) -> i64 {
+    // The cost to reach (x,y) if (x+y)%2 == 0 is (x+y)/2 if there are no walls.
+    // The walls only affect which points are reachable, not their costs.
+    // I assume the points reachable on each wall is continious, even if you have
+    // to go trough different holes.
+    // So, find the lowest reachable point (= lowest cost) on the last wall, and
+    // calculate it's cost. The high point does not matter.
+    let mut prev_x = 0;
+    let mut min_y = 0;
+    for wall in openings.chunk_by(|w1, w2| w1.ahead == w2.ahead) {
+        let ahead = wall[0].ahead.cast_signed();
+        let dist_x = ahead - prev_x;
+
+        // Lowest opening in wall always comes first
+        let mut low_y = wall.first().map(|w| w.start).unwrap();
+        // Adjust for reachability
+        low_y = low_y.max(min_y - dist_x);
+        // Adjust for parity
+        low_y += (low_y + ahead) & 1;
+
+        prev_x = ahead;
+        min_y = low_y;
+    }
+    i64::midpoint(prev_x, min_y)
+}
+
 pub struct Day19;
 
 impl crate::Day for Day19 {
@@ -90,15 +116,15 @@ impl crate::Day for Day19 {
     }
 
     fn part_1(input: &Self::Input) -> i64 {
-        find_path(input)
+        find_path_bfs(input)
     }
 
     fn part_2(input: &Self::Input) -> i64 {
-        find_path(input)
+        find_path_bfs(input)
     }
 
     fn part_3(input: &Self::Input) -> i64 {
-        find_path(input)
+        find_path_reachable(input)
     }
 }
 
