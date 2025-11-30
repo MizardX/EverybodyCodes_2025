@@ -320,7 +320,10 @@ impl crate::Day for Day20 {
 
     fn part_2(input: &Self::Input) -> u64 {
         find_path(input, |pos| {
-            Direction::all().into_iter().filter_map(move |dir| pos + dir)
+            Direction::all()
+                .into_iter()
+                .filter_map(move |dir| pos + dir)
+                .filter(|&pos| pos.within_grid(input.size))
         })
     }
 
